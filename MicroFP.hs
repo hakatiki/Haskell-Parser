@@ -365,8 +365,6 @@ lookupTest = Map.lookup "ala" test1
 
 -- ======================== more ==========================
 
--- eval :: Prog -> String -> [Integer] -> Integer
--- eval (Prog func) str ints = evalFuncList (Prog func) func str ints
 
 getLast :: [Func] -> Func
 getLast (x:[]) = x
