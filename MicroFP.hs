@@ -360,3 +360,37 @@ lookupTest = Map.lookup "ala" test1
 
 -- main
        -- Prog [Func "main" (Term (Factor (Identifier "div" (Term (Factor (Int 999))) [Term (Factor (Int 2))])))]
+
+
+
+-- ======================== more ==========================
+
+-- eval :: Prog -> String -> [Integer] -> Integer
+-- eval (Prog func) str ints = evalFuncList (Prog func) func str ints
+
+getLast :: [Func] -> Func
+getLast (x:[]) = x
+getLast (x:xs) = getLast xs
+
+readLast :: FilePath -> IO Func
+readLast x = do 
+       contents <- readFile x 
+       let compiled = compile contents
+       let lst = c where Prog c = compiled
+       let last = getLast lst
+       return last
+
+
+runFile :: FilePath -> [Integer] -> IO Integer
+runFile x [] = do
+       myfunc <- readLast x
+       let compiled = Prog [myfunc]
+       let filename = c where Func c rest = myfunc
+       let answer = eval compiled filename []
+       return (answer)
+runFile x y = do
+       myfunc <- readLast x
+       let compiled = Prog [myfunc]
+       let filename = c where Function c vars rest = myfunc
+       let answer = eval compiled filename y
+       return (answer)

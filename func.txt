@@ -1,0 +1,9 @@
+
+
+main := div (999, 2);
+
+double a := a*2;
+
+add x y := x + y;
+
+fourty := twice (double, 10);
