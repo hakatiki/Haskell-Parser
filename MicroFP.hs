@@ -11,6 +11,8 @@ import PComb
 import BasicParsers
 import Test.QuickCheck
 import Test.QuickCheck.All
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 
 
@@ -151,57 +153,173 @@ funcTest = runParser func (Stream "alma := 10;")
 
 
 
-
--- [(prettify, _)] = testProgram3
-
+-- [(prettify, _)] = fiboTest
 
 
--- pretty :: Prog -> String
--- pretty (Prog []) = ""
--- pretty (Prog (x:xs)) = prettyFunc x ++ " " ++ prettyFuncList xs
 
--- prettyFuncList ::[Func] -> String
--- prettyFuncList [] = ""
--- prettyFuncList (x:xs) = prettyFunc x ++ " " ++ prettyFuncList xs
+pretty :: Prog -> String
+pretty (Prog []) = ""
+pretty (Prog (x:xs)) = prettyFunc x ++ " " ++ prettyFuncList xs
 
--- prettyFunc :: Func -> String
--- prettyFunc (Function str [] expr) = str ++ ":= " ++ prettyExpr expr ++ "; "
--- prettyFunc (Function str middle expr) = str ++ " " ++ prettyCombList middle ++":= " ++ prettyExpr expr ++ "; "
+prettyFuncList ::[Func] -> String
+prettyFuncList [] = ""
+prettyFuncList (x:xs) = prettyFunc x ++ " " ++ prettyFuncList xs
 
--- prettyCombList :: [Comb] -> String
--- prettyCombList [] = ""
--- prettyCombList (Id x :xs) = " " ++ x ++ " " ++ prettyCombList xs
--- prettyCombList (Integer x :xs) = " " ++ show x ++ " " ++ prettyCombList xs
+prettyFunc :: Func -> String
+prettyFunc (Function str [] expr) = str ++ ":= " ++ prettyExpr expr ++ "; "
+prettyFunc (Function str middle expr) = str ++ " " ++ prettyCombList middle ++":= " ++ prettyExpr expr ++ "; "
 
--- prettyExpr :: Expr->String
--- prettyExpr (Term term) = prettyTerm term
--- prettyExpr (AddAndSub term str expr) = prettyTerm term ++ " " ++ str ++ " " ++ prettyExpr expr
+prettyCombList :: [Comb] -> String
+prettyCombList [] = ""
+prettyCombList (Id x :xs) = " " ++ x ++ " " ++ prettyCombList xs
+prettyCombList (Integer x :xs) = " " ++ show x ++ " " ++ prettyCombList xs
 
--- prettyExprList :: [Expr] -> String
--- prettyExprList [] = ""
--- prettyExprList (x:xs)= ", " ++prettyExpr x ++ ", " ++ prettyExprList xs 
+prettyExpr :: Expr->String
+prettyExpr (Term term) = prettyTerm term
+prettyExpr (AddAndSub term str expr) = prettyTerm term ++ " " ++ str ++ " " ++ prettyExpr expr
 
--- prettyFactor :: Factor -> String
--- prettyFactor (Int i) = show i
--- prettyFactor (Identifier str expr list) = str ++ "( " ++ prettyExpr expr ++ prettyExprList list ++ " )" 
--- prettyFactor (Identifier2 str expr ) = str ++ "( " ++ prettyExpr expr ++ " )"
--- prettyFactor (Identifier3 str  ) = str
--- prettyFactor (If expr1 ord expr2 expr3 expr4) = 
---                             "if( " ++ prettyExpr expr1 ++" "++ prettyOrder ord ++" "++ prettyExpr expr2 ++" ) "++
---                             "then{ " ++ prettyExpr expr3 ++ " } " ++
---                             "else{ " ++ prettyExpr expr4 ++ " }" 
--- prettyFactor (Parens expr) = "( " ++ prettyExpr  expr ++ " )"
+prettyExprList :: [Expr] -> String
+prettyExprList [] = ""
+prettyExprList (x:xs)= ", " ++prettyExpr x ++ ", " ++ prettyExprList xs 
 
--- prettyOrder :: Order -> String
--- prettyOrder (Greater str) = str 
--- prettyOrder (Equals str) = str
--- prettyOrder (Less str) =str
+prettyFactor :: Factor -> String
+prettyFactor (Int i) = show i
+prettyFactor (Identifier str expr list) = str ++ "( " ++ prettyExpr expr ++ prettyExprList list ++ " )" 
+prettyFactor (Identifier2 str expr ) = str ++ "( " ++ prettyExpr expr ++ " )"
+prettyFactor (Identifier3 str  ) = str
+prettyFactor (If expr1 ord expr2 expr3 expr4) = 
+                            "if( " ++ prettyExpr expr1 ++" "++ prettyOrder ord ++" "++ prettyExpr expr2 ++" ) "++
+                            "then{ " ++ prettyExpr expr3 ++ " } " ++
+                            "else{ " ++ prettyExpr expr4 ++ " }" 
+prettyFactor (Parens expr) = "( " ++ prettyExpr  expr ++ " )"
+
+prettyOrder :: Order -> String
+prettyOrder (Greater str) = str 
+prettyOrder (Equals str) = str
+prettyOrder (Less str) =str
                             
--- prettyTerm :: Term -> String 
--- prettyTerm (Factor fact) =  prettyFactor fact
--- prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
+prettyTerm :: Term -> String 
+prettyTerm (Factor fact) =  prettyFactor fact
+prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
 
 
+
+
+
+prog = Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
+
+eval :: Prog -> String -> [Integer] -> Integer
+eval (Prog func) str ints = evalFuncList (Prog func) func str ints
+
+evalFuncList :: Prog -> [Func] ->String -> [Integer] -> Integer
+evalFuncList prog (x:xs) str ints = case match of 
+                                    True -> evalFunction prog x ints
+                                    False -> evalFuncList prog xs str ints
+                        where match = evalMatchFunc x str
+
+evalFunction :: Prog -> Func -> [Integer] -> Integer
+evalFunction prog (Function _ [] expr) _ = evalExpr prog (match [(Id "")] [0]) expr
+evalFunction prog (Function _ list expr) ints = evalExpr prog vars expr
+                        where vars = match list ints
+
+
+evalExpr:: Prog ->Map String Integer -> Expr -> Integer
+evalExpr prog vars (Term term) = evalTerm prog vars term
+evalExpr prog vars (AddAndSub term str expr) = f lhs rhs
+                        where f = case str of
+                                    "+"-> (\ x y -> x + y)
+                                    "-"-> (\ x y -> x - y)
+                              lhs = evalTerm prog vars term
+                              rhs = evalExpr prog vars expr
+
+evalExprList:: Prog ->Map String Integer -> [Expr] -> [Integer]
+evalExprList _ _ [] = []
+evalExprList prog vars (x:xs) = (evalExpr prog vars x) : (evalExprList prog vars xs)
+
+evalTerm :: Prog ->Map String Integer -> Term -> Integer
+evalTerm prog vars (Factor fact) = evalFactor prog vars fact
+evalTerm prog vars (Mult fact term) = (evalFactor prog vars fact) * (evalTerm prog vars term)
+
+
+evalOrder :: Prog ->Map String Integer ->Order-> Expr ->Expr -> Bool
+evalOrder prog vars (Greater id) e1 e2 = (evalExpr prog vars e1)>(evalExpr prog vars e2)
+evalOrder prog vars (Equals id)  e1 e2  = (evalExpr prog vars e1)==(evalExpr prog vars e2)
+evalOrder prog vars (Less id) e1 e2  = (evalExpr prog vars e1)<(evalExpr prog vars e2)
+
+
+evalFactor :: Prog ->Map String Integer -> Factor -> Integer
+evalFactor prog vars (Int i) = i
+evalFactor prog vars (Parens expr) = evalExpr prog vars expr
+evalFactor prog vars (Identifier3 id) = getVar vars id
+evalFactor prog vars (Identifier2 id expr) = eval prog id [(evalExpr prog vars expr)]
+evalFactor prog vars (Identifier id expr list) = eval prog id params
+                                                where params = (evalExpr prog vars expr) : evalExprList prog vars list
+
+evalFactor prog vars (If e1 ord e2 e3 e4) = case ifResult of 
+                                              True -> evalExpr prog vars e3
+                                              otherwise -> evalExpr prog vars e4
+                                        where ifResult = evalOrder prog vars ord e1 e2
+                                              
+
+ifProgGT = If (Term (Factor (Int 2))) (Less "<") (Term (Factor (Int 3))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
+ifProgEQ = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
+ifProgCompl = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (Term (Mult (Int 2) (Factor (Int 4))))) (Term (Factor (Int 3)))
+evalIfTest1 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgGT -- Correct solution is : 3
+evalIfTest2 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgEQ -- Correct solution is : 1
+evalIfTest3 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgCompl -- Correct solution is : 9
+
+
+idProg1 = Identifier3 "apple"
+idProg2 = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (AddAndSub (Mult (Identifier3 "apple") (Factor (Int 3))) "-" (Term (Factor (Identifier3 "apple"))))) (Term (Factor (Int 3)))
+idTest1 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg1 -- Correct solution is : 69
+idTest2 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg2 -- Correct solution is : 139
+
+
+-- Input program : "test n := n * n;"
+smallProg1 = compile "test n := n * n;"
+smallProg1Test = eval smallProg1 "test" [2] -- Correct solution is : 4
+
+
+smallProg2 = compile "test a b := a * b - ( a + b ) * b;"
+smallProg2Test = eval smallProg2 "test" [2,4] -- Correct solution is : -16
+
+smallProg3 = compile "test a b := if (a * b < 20) then {0} else {-1};"
+smallProg3Test1 = eval smallProg3 "test" [2,4] -- Correct solution is : 0
+smallProg3Test2 = eval smallProg3 "test" [5,20] -- Correct solution is : 1
+
+smallProg4 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a + b;"
+smallProg4Test =  eval smallProg4 "test" [2,4] -- Correct solution is 6
+
+smallProg5 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a * b + a + b;"
+smallProg5Test1 =  eval smallProg5 "test" [2,4] -- Correct solution is 10
+smallProg5Test2 =  eval smallProg5 "add" [2,4] -- Correct solution is 14
+smallProg5Test3 =  eval smallProg5 "test" [2,420] -- Correct solution is 1262
+
+divTest = compile "div x y := if (x < y) then { 0 } else {  1 + div ((x-y), y) };"
+divRun1 = eval divTest "div" [2, 10] -- Correct solution is 0
+divRun2 = eval divTest "div" [100, 3] -- Correct solution is 33 
+
+evalMatchFunc :: Func -> String -> Bool
+evalMatchFunc (Function str1 _ _ ) str2 = str1 == str2 
+
+match:: [Comb]->[Integer]->Map String Integer
+match a b = Map.fromList (zip (getStrings a) b)
+
+getStrings:: [Comb]->[String]
+getStrings [] = []
+getStrings  ((Id x) : xs) = x : getStrings xs
+getStrings  ((Integer x) : []) = []
+getStrings  ((Integer x) : xs) = getStrings xs
+
+getVar :: Map String Integer -> String -> Integer
+getVar vars str = case maybeInt of
+                        Just i -> i
+                        Nothing -> 0 -- ERRRORRR
+                        where maybeInt = Map.lookup str vars
+
+
+test1 = match [(Id "ala")] [1]
+lookupTest = Map.lookup "ala" test1
 
 
 -- ================ 3.2 
