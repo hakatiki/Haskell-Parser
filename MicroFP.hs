@@ -206,21 +206,23 @@ prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
 
 
 
+
 prog = Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
 
 eval :: Prog -> String -> [Integer] -> Integer
 eval (Prog func) str ints = evalFuncList (Prog func) func str ints
 
 evalFuncList :: Prog -> [Func] ->String -> [Integer] -> Integer
+evalFuncList prog [] str ints = -9999999
 evalFuncList prog (x:xs) str ints = case match of 
                                     True -> evalFunction prog x ints
                                     False -> evalFuncList prog xs str ints
-                        where match = evalMatchFunc x str
+                        where match = evalMatchFunc x str ints
 
 evalFunction :: Prog -> Func -> [Integer] -> Integer
-evalFunction prog (Function _ [] expr) _ = evalExpr prog (match [(Id "")] [0]) expr
+evalFunction prog (Function _ [] expr) _ = evalExpr prog (match2 [(Id "")] [0]) expr
 evalFunction prog (Function _ list expr) ints = evalExpr prog vars expr
-                        where vars = match list ints
+                        where vars = match2 list ints
 
 
 evalExpr:: Prog ->Map String Integer -> Expr -> Integer
@@ -256,7 +258,7 @@ evalFactor prog vars (Identifier id expr list) = eval prog id params
                                                 where params = (evalExpr prog vars expr) : evalExprList prog vars list
 
 evalFactor prog vars (If e1 ord e2 e3 e4) = case ifResult of 
-                                              True -> evalExpr prog vars e3
+                                              True -> evalExpr prog vars e3
                                               otherwise -> evalExpr prog vars e4
                                         where ifResult = evalOrder prog vars ord e1 e2
                                               
@@ -283,7 +285,7 @@ smallProg1Test = eval smallProg1 "test" [2] -- Correct solution is : 4
 smallProg2 = compile "test a b := a * b - ( a + b ) * b;"
 smallProg2Test = eval smallProg2 "test" [2,4] -- Correct solution is : -16
 
-smallProg3 = compile "test a b := if (a * b < 20) then {0} else {-1};"
+smallProg3 = compile "test a b := if (a * b < 20) then {0} else {1};"
 smallProg3Test1 = eval smallProg3 "test" [2,4] -- Correct solution is : 0
 smallProg3Test2 = eval smallProg3 "test" [5,20] -- Correct solution is : 1
 
@@ -299,17 +301,41 @@ divTest = compile "div x y := if (x < y) then { 0 } else {  1 + div ((x-y), y) }
 divRun1 = eval divTest "div" [2, 10] -- Correct solution is 0
 divRun2 = eval divTest "div" [100, 3] -- Correct solution is 33 
 
-evalMatchFunc :: Func -> String -> Bool
-evalMatchFunc (Function str1 _ _ ) str2 = str1 == str2 
+
+fibTest = compile "fib n := if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) };"
+fibRun1 = eval fibTest "fib" [10] -- Correct solution is ?
+
+fibonacciTest = compile "fibonacci 0 := 0; fibonacci 1 := 1; fibonacci n := fibonacci (n-1) + fibonacci (n-2);"
+fibonacciRun1 = eval fibonacciTest "fibonacci" [0]
+fibonacciRun2 = eval fibonacciTest "fibonacci" [1]
+fibonacciRun3 = eval fibonacciTest "fibonacci" [10]
+
+evalMatchFunc :: Func -> String ->[Integer]-> Bool
+evalMatchFunc (Function str1 list _ ) str2 ints = str1 == str2 && patternMatch list ints
+
+patternMatch :: [Comb]-> [Integer]->Bool
+patternMatch [] []   = True
+patternMatch [] ints = False
+patternMatch head [] = False 
+patternMatch  ((Id x) : xs)       (head:tail) = patternMatch xs tail
+patternMatch  ((Integer x) : xs)  (head:tail) = x == head && patternMatch xs tail
 
 match:: [Comb]->[Integer]->Map String Integer
 match a b = Map.fromList (zip (getStrings a) b)
+
+match2:: [Comb]->[Integer]->Map String Integer
+match2 a b = Map.fromList (customZip a b)
 
 getStrings:: [Comb]->[String]
 getStrings [] = []
 getStrings  ((Id x) : xs) = x : getStrings xs
 getStrings  ((Integer x) : []) = []
 getStrings  ((Integer x) : xs) = getStrings xs
+
+customZip :: [Comb]->[Integer]-> [(String, Integer)]
+customZip [] [] = []
+customZip ((Id x) : xs)      (head:tail) = (x, head) : customZip xs tail
+customZip ((Integer x) : xs) (head:tail) = customZip xs tail
 
 getVar :: Map String Integer -> String -> Integer
 getVar vars str = case maybeInt of
@@ -318,8 +344,7 @@ getVar vars str = case maybeInt of
                         where maybeInt = Map.lookup str vars
 
 
-test1 = match [(Id "ala")] [1]
-lookupTest = Map.lookup "ala" test1
+                                              
 
 
 -- ================ 3.2 
@@ -370,6 +395,22 @@ getLast :: [Func] -> Func
 getLast (x:[]) = x
 getLast (x:xs) = getLast xs
 
+getMatched :: [Func] -> String -> [Func]
+getMatched (x:[]) y = [x]
+getMatched ((Func a b):xs) y = getMatched xs y
+getMatched (x:xs) y | y == c = [x] ++ (getMatched xs y) 
+                    | otherwise = getMatched xs y where Function c vars rest = x
+
+readMatched :: FilePath -> IO [Func]
+readMatched x = do 
+       contents <- readFile x 
+       let compiled = compile contents 
+       let lst = c where Prog c = compiled 
+       let last = getLast lst
+       let filename = a where (Func a b) = last
+       let matched = getMatched lst filename
+       return (matched)
+
 readLast :: FilePath -> IO Func
 readLast x = do 
        contents <- readFile x 
@@ -383,12 +424,12 @@ runFile :: FilePath -> [Integer] -> IO Integer
 runFile x [] = do
        myfunc <- readLast x
        let compiled = Prog [myfunc]
-       let filename = c where Func c rest = myfunc
+       let filename = a where (Func a b) = myfunc
        let answer = eval compiled filename []
        return (answer)
 runFile x y = do
-       myfunc <- readLast x
-       let compiled = Prog [myfunc]
-       let filename = c where Function c vars rest = myfunc
+       matched <- readMatched x
+       let compiled = Prog matched
+       let filename = c where Function c vars rest = head matched
        let answer = eval compiled filename y
        return (answer)
