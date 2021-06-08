@@ -13,7 +13,7 @@ import PComb
 -- ======================== Basic Parsers ==========================
 
 -- FP2.1
-
+-- We create a parser like this here: (char 'a') <|>(char 'b') <|> ... <|>(char 'Z')
 letter :: Parser Char
 letter = foldl (\x y ->  x <|> char y) (char 'a') (['b'..'z']++['A'..'Z'])
 
@@ -49,7 +49,7 @@ option x y = y <|> pure x
 
 
 -- FP2.4
-
+-- We concat a char parsers from the characters of the String
 string :: String -> Parser String
 string (x:[]) = (\x->x:[]) <$> char x
 string (head:tail) = (\x y-> x:y) <$> char head <*> string tail
@@ -57,6 +57,7 @@ string (head:tail) = (\x y-> x:y) <$> char head <*> string tail
 identifier:: Parser String
 identifier = whitespace (manyParsers letter) 
 
+-- We first parse the number and then we map the string with a lambda to an Integer
 integer :: Parser Integer
 integer = whitespace ((\x -> (read x :: Integer)) <$> p) where 
     p = ((\x y -> x:y) <$> dig <*> (manyParsers dig)) <|> (\x -> x:[]) <$> dig
@@ -70,6 +71,7 @@ parens p = between (symbol "(") p (symbol ")")
 braces :: Parser a -> Parser a 
 braces p = between (symbol "{") p (symbol "}")
 
+-- This recursively parses p and then concats the output with the lambda function
 manyParsers :: Parser a -> Parser [a]
 manyParsers p = ((\x y -> x:y) <$> p <*> manyParsers p) <|> (\x -> x:[]) <$> p 
 
