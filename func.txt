@@ -11,6 +11,8 @@ fib n := if (n < 3) then {
  	 } else {
 	   fib (n-1) + fib (n-2)
   	 };
+	   
+lil := 2;
 
 fibonacci 0 := 0;
 fibonacci 1 := 1;

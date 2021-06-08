@@ -161,6 +161,7 @@ evalFuncList prog (x:xs) str ints = case match of
                         where match = evalMatchFunc x str ints
 
 evalFunction :: Prog -> Func -> [Integer] -> Integer
+evalFunction prog (Func _ expr) _ = evalExpr prog(match2 [(Id "")] [0]) expr
 evalFunction prog (Function _ [] expr) _ = evalExpr prog (match2 [(Id "")] [0]) expr
 evalFunction prog (Function _ list expr) ints = evalExpr prog vars expr
                         where vars = match2 list ints
@@ -200,6 +201,7 @@ evalFactor prog vars (If e1 ord e2 e3 e4) = case ifResult of
                                         where ifResult = evalOrder prog vars ord e1 e2
                                               
 evalMatchFunc :: Func -> String ->[Integer]-> Bool
+evalMatchFunc (Func str1 expr) str2 _ = str1 == str2 
 evalMatchFunc (Function str1 list _ ) str2 ints = str1 == str2 && patternMatch list ints
 
 patternMatch :: [Comb]-> [Integer]->Bool
