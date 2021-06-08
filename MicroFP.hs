@@ -210,6 +210,7 @@ prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
 prog = Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
 
 eval :: Prog -> String -> [Integer] -> Integer
+eval x y [] = error "Not enough arguments"
 eval (Prog func) str ints = evalFuncList (Prog func) func str ints
 
 evalFuncList :: Prog -> [Func] ->String -> [Integer] -> Integer

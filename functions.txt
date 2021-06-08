@@ -30,6 +30,6 @@ fibonacci n := fibonacci (n-1) + fibonacci (n-2);
 
 main := div (999, 2);
 
-fourty := twice (double, 10);
-
 tf x := twice (double, x);
+
+fourty := twice (double, 10);
