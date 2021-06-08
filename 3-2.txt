@@ -20,7 +20,6 @@ Double
        Prog [Function "double" [Id "a"] (Term (Mult (Identifier3 "a") (Factor (Int 2))))]
 
 Add
-
        Prog [Function "add" [Id "x",Id "y"] (AddAndSub (Factor (Identifier3 "x")) "+" (Term (Factor (Identifier3 "y"))))]
 
 Inc
@@ -28,6 +27,7 @@ Inc
 
 Eleven
        Prog [Func "eleven" (Term (Factor (Identifier2 "inc" (Term (Factor (Int 10))))))]
+
 Fourty
        Prog [Func "fourty" (Term (Factor (Identifier "twice" (Term (Factor (Identifier3 "double"))) [Term (Factor (Int 10))])))]
 
