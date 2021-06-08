@@ -13,7 +13,13 @@
     - [EDSL Parsers] -> Exercise 4.1
     - [Compile] -> Exercise 4.2
     - [Pretty] -> Exercise 3.3
-    - [Eval] -> Exercise 3.4
+    - [Eval + Pattern match] -> Exercise 3.4 && Exercise 5.2
     - [runFile] -> Exercise 4.3
 * 3-2.txt
     - [μFP EDSL - Prog instances] -> Exercise 3.2
+
+## Extra
+* func.txt 
+    - Our file to test `runFile`
+* functions.txt 
+    - Place to store all functions, to use for testing purposes

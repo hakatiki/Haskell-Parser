@@ -148,10 +148,9 @@ prettyTerm (Factor fact) =  prettyFactor fact
 prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
 
 
--- ======================== Eval ==========================
+-- ======================== Eval + Pattern Match ==========================
 
 eval :: Prog -> String -> [Integer] -> Integer
-eval x y [] = error "Not enough arguments"
 eval (Prog func) str ints = evalFuncList (Prog func) func str ints
 
 evalFuncList :: Prog -> [Func] ->String -> [Integer] -> Integer
