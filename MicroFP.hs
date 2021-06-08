@@ -22,9 +22,8 @@ import qualified Data.Map as Map
 return []
 check = $quickCheckAll
 
---eleven := inc (10);
--- f_eleven = Prog [(Function "eleven" [] (Term (Factor ( Identifier "inc" (Term (Factor (Int 10))) [])))) ] 
 
+-- ======================== EDSL ==========================
 
 data Comb = Id String
           | Integer Integer
@@ -58,6 +57,9 @@ data Factor = Int Integer
             | Parens Expr 
               deriving Show
 
+
+-- ======================== EDSL Parsers ==========================
+
 comb :: Parser Comb 
 comb = Id <$> identifier <|>
        Integer <$> integer
@@ -90,72 +92,15 @@ factor = Int <$> integer <|>
          Identifier2 <$> identifier <*> parens(expr) <|>
          Identifier3 <$> identifier)
 
+
+-- ======================== Compile ==========================    
+
 compile :: String -> Prog
 compile x = ret
        where [(ret,_)] = runParser program (Stream x)
 
--- ================ Test cases ================
-testProgram = runParser program (Stream "fourty := twice (double, 10);")
-testProgram2 = runParser program (Stream "fib 0 := 1;")
-testProgram3 = runParser program (Stream "fib n := if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) };")
-testProgram4 = runParser program (Stream "div x y := if (x < y) then { 0 } else { 1 + div ((x-y), y) };")
 
-orderTest1 = runParser order (Stream "<")
-orderTest2 = runParser order (Stream ">")
-orderTest3 = runParser order (Stream "==")
-
-termTest = runParser term (Stream "12")
-termTest2 = runParser term (Stream "12 * 3")
-exprTest1  = runParser expr (Stream "10")
-
-testFactor = runParser factor (Stream "123")
-testFactor2 = runParser factor (Stream "(12-2)")
-testFactor3 = runParser factor (Stream "if (12 == 12) then {40} else {20}")
-testFactor4 = runParser factor (Stream "bob (10)")
-testFactor5 = runParser factor (Stream "bob (10,21)")
-testFactor6 = runParser factor (Stream "if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) }")
-testFactor7 = runParser factor (Stream "if (n < 3) then { 1 } else { fib (n-1) + 2 }")
-
-testFunc = runParser func (Stream "a := 12;")
-testFunc2 = runParser func (Stream "fourty := twice (double, 10);")
-testFunc3 = runParser func (Stream "fib 0 := 1;")
-testFunc4 = runParser (manyParsers func) (Stream "fib 0 := 1;")
-
-testExpr = runParser expr (Stream "2+3")
-testExpr2 = runParser expr (Stream "fib (2) + fib (2)")
-
-testNeeded = runParser (braces expr) (Stream "{ fib (n-1) + fib (n-2) }")
-
-
-
-factorTest1 = runParser factor (Stream "(10+11)")
-
-
-
-
-
-
-
-
--- FAILS
-funcTest = runParser func (Stream "alma := 10;")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- [(prettify, _)] = fiboTest
-
-
+-- ======================== Pretty ==========================
 
 pretty :: Prog -> String
 pretty (Prog []) = ""
@@ -203,11 +148,7 @@ prettyTerm (Factor fact) =  prettyFactor fact
 prettyTerm (Mult fact term) = prettyFactor fact ++ " * " ++ prettyTerm term
 
 
-
-
-
-
-prog = Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
+-- ======================== Eval ==========================
 
 eval :: Prog -> String -> [Integer] -> Integer
 eval x y [] = error "Not enough arguments"
@@ -224,7 +165,6 @@ evalFunction :: Prog -> Func -> [Integer] -> Integer
 evalFunction prog (Function _ [] expr) _ = evalExpr prog (match2 [(Id "")] [0]) expr
 evalFunction prog (Function _ list expr) ints = evalExpr prog vars expr
                         where vars = match2 list ints
-
 
 evalExpr:: Prog ->Map String Integer -> Expr -> Integer
 evalExpr prog vars (Term term) = evalTerm prog vars term
@@ -243,12 +183,10 @@ evalTerm :: Prog ->Map String Integer -> Term -> Integer
 evalTerm prog vars (Factor fact) = evalFactor prog vars fact
 evalTerm prog vars (Mult fact term) = (evalFactor prog vars fact) * (evalTerm prog vars term)
 
-
 evalOrder :: Prog ->Map String Integer ->Order-> Expr ->Expr -> Bool
 evalOrder prog vars (Greater id) e1 e2 = (evalExpr prog vars e1)>(evalExpr prog vars e2)
 evalOrder prog vars (Equals id)  e1 e2  = (evalExpr prog vars e1)==(evalExpr prog vars e2)
 evalOrder prog vars (Less id) e1 e2  = (evalExpr prog vars e1)<(evalExpr prog vars e2)
-
 
 evalFactor :: Prog ->Map String Integer -> Factor -> Integer
 evalFactor prog vars (Int i) = i
@@ -257,60 +195,11 @@ evalFactor prog vars (Identifier3 id) = getVar vars id
 evalFactor prog vars (Identifier2 id expr) = eval prog id [(evalExpr prog vars expr)]
 evalFactor prog vars (Identifier id expr list) = eval prog id params
                                                 where params = (evalExpr prog vars expr) : evalExprList prog vars list
-
 evalFactor prog vars (If e1 ord e2 e3 e4) = case ifResult of 
                                               True -> evalExpr prog vars e3
                                               otherwise -> evalExpr prog vars e4
                                         where ifResult = evalOrder prog vars ord e1 e2
                                               
-
-ifProgGT = If (Term (Factor (Int 2))) (Less "<") (Term (Factor (Int 3))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
-ifProgEQ = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
-ifProgCompl = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (Term (Mult (Int 2) (Factor (Int 4))))) (Term (Factor (Int 3)))
-evalIfTest1 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgGT -- Correct solution is : 3
-evalIfTest2 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgEQ -- Correct solution is : 1
-evalIfTest3 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgCompl -- Correct solution is : 9
-
-
-idProg1 = Identifier3 "apple"
-idProg2 = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (AddAndSub (Mult (Identifier3 "apple") (Factor (Int 3))) "-" (Term (Factor (Identifier3 "apple"))))) (Term (Factor (Int 3)))
-idTest1 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg1 -- Correct solution is : 69
-idTest2 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg2 -- Correct solution is : 139
-
-
--- Input program : "test n := n * n;"
-smallProg1 = compile "test n := n * n;"
-smallProg1Test = eval smallProg1 "test" [2] -- Correct solution is : 4
-
-
-smallProg2 = compile "test a b := a * b - ( a + b ) * b;"
-smallProg2Test = eval smallProg2 "test" [2,4] -- Correct solution is : -16
-
-smallProg3 = compile "test a b := if (a * b < 20) then {0} else {1};"
-smallProg3Test1 = eval smallProg3 "test" [2,4] -- Correct solution is : 0
-smallProg3Test2 = eval smallProg3 "test" [5,20] -- Correct solution is : 1
-
-smallProg4 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a + b;"
-smallProg4Test =  eval smallProg4 "test" [2,4] -- Correct solution is 6
-
-smallProg5 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a * b + a + b;"
-smallProg5Test1 =  eval smallProg5 "test" [2,4] -- Correct solution is 10
-smallProg5Test2 =  eval smallProg5 "add" [2,4] -- Correct solution is 14
-smallProg5Test3 =  eval smallProg5 "test" [2,420] -- Correct solution is 1262
-
-divTest = compile "div x y := if (x < y) then { 0 } else {  1 + div ((x-y), y) };"
-divRun1 = eval divTest "div" [2, 10] -- Correct solution is 0
-divRun2 = eval divTest "div" [100, 3] -- Correct solution is 33 
-
-
-fibTest = compile "fib n := if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) };"
-fibRun1 = eval fibTest "fib" [10] -- Correct solution is ?
-
-fibonacciTest = compile "fibonacci 0 := 0; fibonacci 1 := 1; fibonacci n := fibonacci (n-1) + fibonacci (n-2);"
-fibonacciRun1 = eval fibonacciTest "fibonacci" [0]
-fibonacciRun2 = eval fibonacciTest "fibonacci" [1]
-fibonacciRun3 = eval fibonacciTest "fibonacci" [10]
-
 evalMatchFunc :: Func -> String ->[Integer]-> Bool
 evalMatchFunc (Function str1 list _ ) str2 ints = str1 == str2 && patternMatch list ints
 
@@ -343,54 +232,23 @@ getVar vars str = case maybeInt of
                         Just i -> i
                         Nothing -> 0 -- ERRRORRR
                         where maybeInt = Map.lookup str vars
+                                         
 
+-- ======================== runFile ==========================
 
-                                              
-
-
--- ================ 3.2 
-
--- pm Fib
-       -- Prog [Function "fibonacci" [Integer 0] (Term (Factor (Int 0)))]
-       -- Prog [Function "fibonacci" [Integer 1] (Term (Factor (Int 1)))]
-       -- Prog [Function "fibonacci" [Id "n"] (AddAndSub (Factor (Identifier2 "fibonacci" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier2 "fibonacci" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 2))))))))]
-
--- Fib
-       -- Prog [Function "fib" [Id "n"] (Term (Factor (If (Term (Factor (Identifier3 "n"))) (Less "<") (Term (Factor (Int 3))) (Term (Factor (Int 1))) (AddAndSub (Factor (Identifier2 "fib" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier2 "fib" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 2)))))))))))]
-
--- sum
-       -- Prog [Function "sum" [Integer 0] (Term (Factor (Int 0)))]
-       -- Prog [Function "sum" [Id "a"] (AddAndSub (Factor (Identifier2 "sum" (AddAndSub (Factor (Identifier3 "a")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier3 "a"))))]
-
--- div
-       -- Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
-
--- twice
-       -- Prog [Function "twice" [Id "f",Id "x"] (Term (Factor (Identifier2 "f" (Term (Factor (Identifier2 "f" (Term (Factor (Identifier3 "x")))))))))]
-
--- double
-       -- Prog [Function "double" [Id "a"] (Term (Mult (Identifier3 "a") (Factor (Int 2))))]
-
--- add
-
-       -- Prog [Function "add" [Id "x",Id "y"] (AddAndSub (Factor (Identifier3 "x")) "+" (Term (Factor (Identifier3 "y"))))]
-
--- inc
-       -- Prog [Func "inc" (Term (Factor (Identifier2 "add" (Term (Factor (Int 1))))))]
-
--- eleven
-       -- Prog [Func "eleven" (Term (Factor (Identifier2 "inc" (Term (Factor (Int 10))))))]
-
--- fourty
-       -- Prog [Func "fourty" (Term (Factor (Identifier "twice" (Term (Factor (Identifier3 "double"))) [Term (Factor (Int 10))])))]
-
--- main
-       -- Prog [Func "main" (Term (Factor (Identifier "div" (Term (Factor (Int 999))) [Term (Factor (Int 2))])))]
-
-
-
--- ======================== more ==========================
-
+runFile :: FilePath -> [Integer] -> IO Integer
+runFile x [] = do
+       myfunc <- readLast x
+       let compiled = Prog [myfunc]
+       let filename = a where (Func a b) = myfunc
+       let answer = eval compiled filename []
+       return (answer)
+runFile x y = do
+       matched <- readMatched x
+       let compiled = Prog matched
+       let filename = c where Function c vars rest = head matched
+       let answer = eval compiled filename y
+       return (answer)
 
 getLast :: [Func] -> Func
 getLast (x:[]) = x
@@ -408,7 +266,7 @@ readMatched x = do
        let compiled = compile contents 
        let lst = c where Prog c = compiled 
        let last = getLast lst
-       let filename = a where (Func a b) = last
+       let filename = a where (Function a b rest) = last
        let matched = getMatched lst filename
        return (matched)
 
@@ -421,16 +279,90 @@ readLast x = do
        return last
 
 
-runFile :: FilePath -> [Integer] -> IO Integer
-runFile x [] = do
-       myfunc <- readLast x
-       let compiled = Prog [myfunc]
-       let filename = a where (Func a b) = myfunc
-       let answer = eval compiled filename []
-       return (answer)
-runFile x y = do
-       matched <- readMatched x
-       let compiled = Prog matched
-       let filename = c where Function c vars rest = head matched
-       let answer = eval compiled filename y
-       return (answer)
+
+
+
+
+-- ======================== Tests MicroFP.hs ===============================
+
+
+
+-- Parser tests --
+testProgram = runParser program (Stream "fourty := twice (double, 10);")
+testProgram2 = runParser program (Stream "fib 0 := 1;")
+testProgram3 = runParser program (Stream "fib n := if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) };")
+testProgram4 = runParser program (Stream "div x y := if (x < y) then { 0 } else { 1 + div ((x-y), y) };")
+
+orderTest1 = runParser order (Stream "<")
+orderTest2 = runParser order (Stream ">")
+orderTest3 = runParser order (Stream "==")
+
+termTest = runParser term (Stream "12")
+termTest2 = runParser term (Stream "12 * 3")
+exprTest1  = runParser expr (Stream "10")
+
+testFactor = runParser factor (Stream "123")
+testFactor2 = runParser factor (Stream "(12-2)")
+testFactor3 = runParser factor (Stream "if (12 == 12) then {40} else {20}")
+testFactor4 = runParser factor (Stream "bob (10)")
+testFactor5 = runParser factor (Stream "bob (10,21)")
+testFactor6 = runParser factor (Stream "if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) }")
+testFactor7 = runParser factor (Stream "if (n < 3) then { 1 } else { fib (n-1) + 2 }")
+
+testFunc = runParser func (Stream "a := 12;")
+testFunc2 = runParser func (Stream "fourty := twice (double, 10);")
+testFunc3 = runParser func (Stream "fib 0 := 1;")
+testFunc4 = runParser (manyParsers func) (Stream "fib 0 := 1;")
+
+testExpr = runParser expr (Stream "2+3")
+testExpr2 = runParser expr (Stream "fib (2) + fib (2)")
+
+testNeeded = runParser (braces expr) (Stream "{ fib (n-1) + fib (n-2) }")
+
+factorTest1 = runParser factor (Stream "(10+11)")
+
+
+-- Eval tests --
+prog = Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
+
+smallProg1 = compile "test n := n * n;"
+smallProg1Test = eval smallProg1 "test" [2] -- Correct solution is : 4
+
+smallProg2 = compile "test a b := a * b - ( a + b ) * b;"
+smallProg2Test = eval smallProg2 "test" [2,4] -- Correct solution is : -16
+
+smallProg3 = compile "test a b := if (a * b < 20) then {0} else {1};"
+smallProg3Test1 = eval smallProg3 "test" [2,4] -- Correct solution is : 0
+smallProg3Test2 = eval smallProg3 "test" [5,20] -- Correct solution is : 1
+
+smallProg4 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a + b;"
+smallProg4Test =  eval smallProg4 "test" [2,4] -- Correct solution is 6
+
+smallProg5 = compile "test a b := if (a * b < 20) then {a*3+b} else {add(a, b)}; add a b := a * b + a + b;"
+smallProg5Test1 =  eval smallProg5 "test" [2,4] -- Correct solution is 10
+smallProg5Test2 =  eval smallProg5 "add" [2,4] -- Correct solution is 14
+smallProg5Test3 =  eval smallProg5 "test" [2,420] -- Correct solution is 1262
+
+divTest = compile "div x y := if (x < y) then { 0 } else {  1 + div ((x-y), y) };"
+divRun1 = eval divTest "div" [2, 10] -- Correct solution is 0
+divRun2 = eval divTest "div" [100, 3] -- Correct solution is 33 
+
+fibTest = compile "fib n := if (n < 3) then { 1 } else { fib (n-1) + fib (n-2) };"
+fibRun1 = eval fibTest "fib" [10] -- Correct solution is ?
+
+fibonacciTest = compile "fibonacci 0 := 0; fibonacci 1 := 1; fibonacci n := fibonacci (n-1) + fibonacci (n-2);"
+fibonacciRun1 = eval fibonacciTest "fibonacci" [0]
+fibonacciRun2 = eval fibonacciTest "fibonacci" [1]
+fibonacciRun3 = eval fibonacciTest "fibonacci" [10]
+
+ifProgGT = If (Term (Factor (Int 2))) (Less "<") (Term (Factor (Int 3))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
+ifProgEQ = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (Term (Factor (Int 1))) (Term (Factor (Int 3)))
+ifProgCompl = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (Term (Mult (Int 2) (Factor (Int 4))))) (Term (Factor (Int 3)))
+evalIfTest1 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgGT -- Correct solution is : 3
+evalIfTest2 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgEQ -- Correct solution is : 1
+evalIfTest3 = evalFactor (Prog []) (match [(Id "")] [0]) ifProgCompl -- Correct solution is : 9
+
+idProg1 = Identifier3 "apple"
+idProg2 = If (Term (Factor (Int 2))) (Equals "==") (Term (Factor (Int 2))) (AddAndSub (Factor (Int 1)) "+" (AddAndSub (Mult (Identifier3 "apple") (Factor (Int 3))) "-" (Term (Factor (Identifier3 "apple"))))) (Term (Factor (Int 3)))
+idTest1 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg1 -- Correct solution is : 69
+idTest2 = evalFactor (Prog []) (match [(Id "apple")] [69]) idProg2 -- Correct solution is : 139

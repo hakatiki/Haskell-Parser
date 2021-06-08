@@ -1,0 +1,35 @@
+Pattern match Fib
+       Prog [Function "fibonacci" [Integer 0] (Term (Factor (Int 0)))]
+       Prog [Function "fibonacci" [Integer 1] (Term (Factor (Int 1)))]
+       Prog [Function "fibonacci" [Id "n"] (AddAndSub (Factor (Identifier2 "fibonacci" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier2 "fibonacci" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 2))))))))]
+
+Fib
+       Prog [Function "fib" [Id "n"] (Term (Factor (If (Term (Factor (Identifier3 "n"))) (Less "<") (Term (Factor (Int 3))) (Term (Factor (Int 1))) (AddAndSub (Factor (Identifier2 "fib" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier2 "fib" (AddAndSub (Factor (Identifier3 "n")) "-" (Term (Factor (Int 2)))))))))))]
+
+Sum
+       Prog [Function "sum" [Integer 0] (Term (Factor (Int 0)))]
+       Prog [Function "sum" [Id "a"] (AddAndSub (Factor (Identifier2 "sum" (AddAndSub (Factor (Identifier3 "a")) "-" (Term (Factor (Int 1)))))) "+" (Term (Factor (Identifier3 "a"))))]
+
+Div
+       Prog [Function "div" [Id "x",Id "y"] (Term (Factor (If (Term (Factor (Identifier3 "x"))) (Less "<") (Term (Factor (Identifier3 "y"))) (Term (Factor (Int 0))) (AddAndSub (Factor (Int 1)) "+" (Term (Factor (Identifier "div" (Term (Factor (Parens (AddAndSub (Factor (Identifier3 "x")) "-" (Term (Factor (Identifier3 "y"))))))) [Term (Factor (Identifier3 "y"))])))))))]
+
+Twice
+       Prog [Function "twice" [Id "f",Id "x"] (Term (Factor (Identifier2 "f" (Term (Factor (Identifier2 "f" (Term (Factor (Identifier3 "x")))))))))]
+
+Double
+       Prog [Function "double" [Id "a"] (Term (Mult (Identifier3 "a") (Factor (Int 2))))]
+
+Add
+
+       Prog [Function "add" [Id "x",Id "y"] (AddAndSub (Factor (Identifier3 "x")) "+" (Term (Factor (Identifier3 "y"))))]
+
+Inc
+       Prog [Func "inc" (Term (Factor (Identifier2 "add" (Term (Factor (Int 1))))))]
+
+Eleven
+       Prog [Func "eleven" (Term (Factor (Identifier2 "inc" (Term (Factor (Int 10))))))]
+Fourty
+       Prog [Func "fourty" (Term (Factor (Identifier "twice" (Term (Factor (Identifier3 "double"))) [Term (Factor (Int 10))])))]
+
+Main
+       Prog [Func "main" (Term (Factor (Identifier "div" (Term (Factor (Int 999))) [Term (Factor (Int 2))])))]
