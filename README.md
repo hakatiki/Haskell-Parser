@@ -1,5 +1,4 @@
 ## Introduction
-
 - To help you find all the exercises, we tried to create a logical structure. To further ease grading, we created a short structure list below, to indicate in what file all the exercises are. All files are listed in order of appearance, scrolling from top to bottom.
 
 
